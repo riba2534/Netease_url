@@ -9,6 +9,7 @@
 """
 
 import logging
+import os
 import sys
 import time
 import traceback
@@ -604,6 +605,149 @@ def download_music_api():
         return APIResponse.error(f"下载异常: {str(e)}", 500)
 
 
+@app.route('/batch_download', methods=['POST'])
+def batch_download_music():
+    """批量下载音乐API"""
+    import zipfile
+    import tempfile
+    import json
+    
+    try:
+        # 获取请求参数
+        data = api_service._safe_get_request_data()
+        playlist_id = data.get('playlist_id')
+        quality = data.get('quality', 'lossless')
+        
+        # 参数验证
+        if not playlist_id:
+            return APIResponse.error("必须提供 'playlist_id' 参数")
+        
+        # 获取歌单详情
+        cookies = api_service._get_cookies()
+        playlist_result = playlist_detail(playlist_id, cookies)
+        
+        if not playlist_result or 'tracks' not in playlist_result:
+            return APIResponse.error("获取歌单详情失败", 404)
+        
+        tracks = playlist_result['tracks']
+        # 限制测试：只下载前2首
+        max_download = int(data.get('max_download', 0))
+        if max_download > 0:
+            tracks = tracks[:max_download]
+        total_count = len(tracks)
+        
+        if total_count == 0:
+            return APIResponse.error("歌单中没有歌曲", 404)
+        
+        # 创建临时ZIP文件
+        temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+        zip_path = temp_zip.name
+        temp_zip.close()
+        
+        success_count = 0
+        failed_tracks = []
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for idx, track in enumerate(tracks):
+                try:
+                    track_id = str(track['id'])
+                    track_name = track['name']
+                    artists = track.get('artists', '未知歌手')
+                    
+                    api_service.logger.info(f"正在下载 ({idx+1}/{total_count}): {track_name} - {artists}")
+                    
+                    # 使用下载器下载歌曲
+                    download_result = api_service.downloader.download_music_file(
+                        track_id, quality
+                    )
+                    
+                    if download_result.success and download_result.file_path:
+                        # 读取文件并添加到ZIP
+                        file_path = Path(download_result.file_path)
+                        if file_path.exists():
+                            # 生成安全的文件名
+                            safe_name = f"{track_name} - {artists}"
+                            safe_name = ''.join(c for c in safe_name if c not in r'<>:"/\|?*')
+                            file_ext = file_path.suffix
+                            zip_filename = f"{idx+1:03d}. {safe_name}{file_ext}"
+                            
+                            # 添加到ZIP文件
+                            zipf.write(str(file_path), zip_filename)
+                            success_count += 1
+                            
+                            # 删除临时文件
+                            try:
+                                file_path.unlink()
+                            except:
+                                pass
+                    else:
+                        failed_tracks.append({
+                            'name': track_name,
+                            'artists': artists,
+                            'reason': download_result.error_message or '下载失败'
+                        })
+                        
+                except Exception as e:
+                    api_service.logger.error(f"下载歌曲 {track.get('name', 'Unknown')} 失败: {e}")
+                    failed_tracks.append({
+                        'name': track.get('name', 'Unknown'),
+                        'artists': track.get('artists', 'Unknown'),
+                        'reason': str(e)
+                    })
+            
+            # 添加下载报告
+            report = {
+                'playlist_name': playlist_result.get('name', '未知歌单'),
+                'total_tracks': total_count,
+                'success_count': success_count,
+                'failed_count': len(failed_tracks),
+                'failed_tracks': failed_tracks,
+                'quality': quality
+            }
+            report_json = json.dumps(report, ensure_ascii=False, indent=2)
+            zipf.writestr('download_report.json', report_json)
+        
+        # 发送ZIP文件
+        if success_count > 0:
+            playlist_name = playlist_result.get('name', '歌单')
+            safe_playlist_name = ''.join(c for c in playlist_name if c not in r'<>:"/\|?*')[:50]
+            download_name = f"{safe_playlist_name}_{quality}.zip"
+            
+            response = send_file(
+                zip_path,
+                as_attachment=True,
+                download_name=download_name,
+                mimetype='application/zip'
+            )
+            
+            # 删除临时文件（在请求结束后）
+            @response.call_on_close
+            def cleanup():
+                try:
+                    os.unlink(zip_path)
+                except:
+                    pass
+            
+            return response
+        else:
+            # 清理临时文件
+            try:
+                os.unlink(zip_path)
+            except:
+                pass
+            return APIResponse.error("没有成功下载任何歌曲", 500)
+            
+    except Exception as e:
+        api_service.logger.error(f"批量下载异常: {e}\n{traceback.format_exc()}")
+        # 清理临时文件
+        if 'zip_path' in locals():
+            try:
+                os.unlink(zip_path)
+            except:
+                pass
+        return APIResponse.error(f"批量下载失败: {str(e)}", 500)
+
+
 @app.route('/api/info', methods=['GET'])
 def api_info():
     """API信息接口"""
@@ -619,6 +763,7 @@ def api_info():
                 '/playlist': 'GET/POST - 获取歌单详情',
                 '/album': 'GET/POST - 获取专辑详情',
                 '/download': 'GET/POST - 下载音乐',
+                '/batch_download': 'POST - 批量下载歌单音乐',
                 '/api/info': 'GET - API信息'
             },
             'supported_qualities': [

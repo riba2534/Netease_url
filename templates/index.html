@@ -219,13 +219,34 @@
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-3">
                         <img id="playlist-cover" src="" alt="cover" style="width:60px;height:60px;object-fit:cover;border-radius:8px;margin-right:15px;">
-                        <div>
+                        <div class="flex-grow-1">
                             <h5 id="playlist-name" class="mb-1"></h5>
                             <div class="text-muted" id="playlist-creator"></div>
+                        </div>
+                        <div>
+                            <button id="batch-download-btn" class="btn btn-primary">
+                                <span class="batch-download-text">一键下载全部</span>
+                                <span class="batch-download-spinner d-none">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                    正在打包...
+                                </span>
+                            </button>
                         </div>
                     </div>
                     <div id="playlist-desc" class="mb-2 text-secondary small"></div>
                     <div>共 <span id="playlist-count"></span> 首歌</div>
+                    <div class="mt-2">
+                        <label for="batch-quality" class="form-label">批量下载音质：</label>
+                        <select id="batch-quality" class="form-select form-select-sm" style="width: 200px; display: inline-block;">
+                            <option value="standard">标准音质</option>
+                            <option value="exhigh">极高音质</option>
+                            <option value="lossless" selected>无损音质</option>
+                            <option value="hires">Hires音质</option>
+                            <option value="sky">沉浸环绕声</option>
+                            <option value="jyeffect">高清环绕声</option>
+                            <option value="jymaster">超清母带</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <ul class="list-group mt-3" id="playlist-tracks"></ul>
@@ -521,6 +542,10 @@
                 // 支持直接粘贴歌单链接
                 const idMatch = pid.match(/playlist\?id=(\d+)/);
                 if (idMatch) pid = idMatch[1];
+                
+                // 保存歌单ID用于批量下载
+                window.currentPlaylistId = pid;
+                
                 $.get('/Playlist', { id: pid }, function(data) {
                     if (data.status === 200) {
                         const pl = data.data.playlist;
@@ -549,6 +574,52 @@
                         $('#playlist-tracks').html('<li class="list-group-item">歌单解析失败：'+data.data.msg+'</li>');
                     }
                 }, 'json');
+            });
+            
+            // 批量下载歌单
+            $('#batch-download-btn').on('click', function() {
+                if (!window.currentPlaylistId) {
+                    alert('请先解析歌单');
+                    return;
+                }
+                
+                const $btn = $(this);
+                const quality = $('#batch-quality').val();
+                
+                // 显示加载状态
+                $btn.prop('disabled', true);
+                $btn.find('.batch-download-text').addClass('d-none');
+                $btn.find('.batch-download-spinner').removeClass('d-none');
+                
+                // 创建隐藏的表单来触发下载
+                const form = $('<form>', {
+                    method: 'POST',
+                    action: '/batch_download'
+                });
+                
+                form.append($('<input>', {
+                    type: 'hidden',
+                    name: 'playlist_id',
+                    value: window.currentPlaylistId
+                }));
+                
+                form.append($('<input>', {
+                    type: 'hidden',
+                    name: 'quality',
+                    value: quality
+                }));
+                
+                // 添加到页面并提交
+                form.appendTo('body');
+                form.submit();
+                
+                // 恢复按钮状态（延迟3秒，让用户知道正在处理）
+                setTimeout(function() {
+                    $btn.prop('disabled', false);
+                    $btn.find('.batch-download-text').removeClass('d-none');
+                    $btn.find('.batch-download-spinner').addClass('d-none');
+                    form.remove();
+                }, 3000);
             });
 
             // 专辑解析
