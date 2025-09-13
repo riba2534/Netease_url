@@ -1,0 +1,27 @@
+# VCS
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+env/
+venv/
+
+# Local files
+.env
+cookie.txt
+music_api.log
+downloads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+uv.lock
+

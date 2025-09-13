@@ -1,280 +1,135 @@
-# 网易云音乐无损解析
+# 网易云音乐 API 服务（Docker 版）
 
-<div align="center">
+一个基于 Flask 的网易云音乐解析与下载服务，支持歌曲信息获取、搜索、歌单与专辑解析、单曲下载与批量下载（后台任务 + SSE 进度）。已提供 Docker 镜像封装，便于快速部署。
 
-![GitHub stars](https://img.shields.io/github/stars/Suxiaoqinx/Netease_url?style=flat-square)
-![GitHub forks](https://img.shields.io/github/forks/Suxiaoqinx/Netease_url?style=flat-square)
-![GitHub issues](https://img.shields.io/github/issues/Suxiaoqinx/Netease_url?style=flat-square)
-![GitHub license](https://img.shields.io/github/license/Suxiaoqinx/Netease_url?style=flat-square)
+## 功能特性
+- 单曲信息：链接/ID 解析、下载链接查询、歌词获取
+- 搜索能力：关键词搜索（歌曲为主）
+- 详情页：歌单、专辑详情解析
+- 下载能力：单曲下载、批量下载（ZIP，附下载报告）
+- 前端页面：内置简洁首页，支持一键复制链接、回车触发
+- 健康检查：`/health` 接口
 
-**功能强大的网易云音乐解析工具**
+## 快速开始（Docker）
 
-支持歌曲搜索 | 单曲解析 | 歌单解析 | 专辑解析 | 音乐下载
-
-[在线体验](https://api.toubiec.cn/wyapi.html) • [使用文档](./使用文档.md) • [问题反馈](https://github.com/Suxiaoqinx/Netease_url/issues)
-
-</div>
-
----
-
-> **⚠️ 重要声明**  
-> 本项目为开源软件，遵循 MIT 许可证。任何个人或组织均可自由使用、修改和分发本项目的源代码。但本项目及其任何衍生作品**禁止用于任何商业或付费项目**。如有违反，将视为对本项目许可证的侵犯。欢迎大家在遵守开源精神和许可证的前提下积极贡献和分享代码。
-
-## ✨ 功能特性
-
-### 🎵 核心功能
-- **🔍 歌曲搜索**：支持关键词搜索网易云音乐库中的歌曲
-- **🎧 单曲解析**：解析单首歌曲的详细信息和下载链接
-- **📋 歌单解析**：批量解析歌单中的所有歌曲信息
-- **💿 专辑解析**：批量解析专辑中的所有歌曲信息
-- **⬇️ 音乐下载**：支持多种音质的音乐文件下载
-
-### 🎼 音质支持
-- `standard`：标准音质 (128kbps)
-- `exhigh`：极高音质 (320kbps)
-- `lossless`：无损音质 (FLAC)
-- `hires`：Hi-Res音质 (24bit/96kHz)
-- `jyeffect`：高清环绕声
-- `sky`：沉浸环绕声
-- `jymaster`：超清母带
-
-### 🌐 使用方式
-- **Web界面**：直观友好的网页操作界面
-- **RESTful API**：完整的API接口支持
-- **批量处理**：支持歌单和专辑的批量解析
-- **多格式支持**：支持ID和链接多种输入格式
-
----
-
-## 🚀 快速开始
-
-### 环境要求
-- Python 3.10+
-- 网易云音乐黑胶会员账号
-- uv (Python包管理器)
-
-### 安装步骤
-
-#### 1. 克隆项目
+### 方式一：本地构建镜像
 ```bash
-git clone https://github.com/Suxiaoqinx/Netease_url.git
-cd Netease_url
+# 构建镜像（位于项目根目录）
+docker build -t netease-music-api:latest .
+
+# 运行容器（映射端口与下载目录）
+docker run -d \
+  --name netease-music-api \
+  -p 5000:5000 \
+  -v $(pwd)/downloads:/app/downloads \
+  -e LOG_LEVEL=INFO \
+  netease-music-api:latest
+
+# 访问服务
+# 前端页面
+open http://localhost:5000
+# 健康检查
+curl http://localhost:5000/health
 ```
 
-#### 2. 安装uv和依赖
+### 方式二：Docker Compose
+```yaml
+services:
+  netease:
+    image: ${DOCKER_IMAGE:-riba2534/netease_url:latest}
+    container_name: netease-music-api
+    ports:
+      - "5000:5000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 5000
+      DEBUG: "false"
+      DOWNLOADS_DIR: downloads
+      LOG_LEVEL: INFO
+      CORS_ORIGINS: "*"
+    volumes:
+      - ./downloads:/app/downloads
+    restart: unless-stopped
+```
+启动：
 ```bash
-# 安装uv（如果未安装）
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 使用uv安装依赖
-uv sync
+docker compose up -d
 ```
 
-#### 3. 配置Cookie
-在 `cookie.txt` 文件中填入黑胶会员账号的Cookie：
-
-> 💡 **获取Cookie方法**：登录网易云音乐网页版 → F12开发者工具 → Network标签页 → 复制任意请求的Cookie值
-
-#### 4. 启动服务
+### 方式三：从 Docker Hub 拉取（镜像：riba2534/netease_url）
 ```bash
-uv run main.py
+# 登录（首次需要）
+docker login
+
+# 拉取镜像
+docker pull riba2534/netease_url:latest
+
+# 运行
+docker run -d \
+  --name netease-music-api \
+  -p 5000:5000 \
+  -v $(pwd)/downloads:/app/downloads \
+  riba2534/netease_url:latest
 ```
 
-#### 5. 访问界面
-打开浏览器访问：`http://localhost:5000`
+## 环境变量
+- `HOST`：绑定地址（默认 `0.0.0.0`）
+- `PORT`：服务端口（默认 `5000`）
+- `DEBUG`：是否开启调试（`true/false`，默认 `false`）
+- `DOWNLOADS_DIR`：下载目录（默认 `downloads`）
+- `LOG_LEVEL`：日志等级（默认 `INFO`）
+- `CORS_ORIGINS`：CORS 白名单（默认 `*`）
+
+## 常用目录挂载
+- `/app/downloads`：下载输出目录（建议映射到宿主机，避免容器删除后文件丢失）
+
+## 主要接口
+- `GET  /`：内置前端页面
+- `GET  /health`：健康检查
+- `GET/POST /song`：歌曲信息（支持 `id|url`，`level`）
+- `GET/POST /search`：搜索
+- `GET/POST /playlist`：歌单详情
+- `GET/POST /album`：专辑详情
+- `GET/POST /download`：下载单曲（支持 `format=json|file`）
+- `POST /batch_download_v2`：批量下载任务（后台任务 + SSE）
+- `GET  /download_progress/<task_id>`：SSE 进度
+- `GET  /download_result/<task_id>`：下载结果（ZIP）
+
+## 本地开发
+```bash
+# 推荐使用 uv（已提供 uv.lock）
+uv venv && uv sync
+source .venv/bin/activate  # Windows: .\\.venv\\Scripts\\activate
+
+# 运行
+python main.py
+```
+
+## 构建并推送到 Docker Hub（手动）
+```bash
+# 登录
+docker login
+
+# 构建（latest 标签）
+docker build -t riba2534/netease_url:latest .
+
+# 推送
+docker push riba2534/netease_url:latest
+
+# 若需要自定义标签（例如 tagname）
+docker tag riba2534/netease_url:latest riba2534/netease_url:tagname
+docker push riba2534/netease_url:tagname
+```
+
+## GitHub Action 自动推送（可选）
+已提供 `.github/workflows/docker-publish.yml`，在你仓库配置 Secrets 后，将在 push 到默认分支时自动构建并推送镜像：
+- `DOCKERHUB_USERNAME`：你的 Docker Hub 用户名
+- `DOCKERHUB_TOKEN`：Docker Hub 的 Access Token
+
+默认推送 `latest` 与基于 Git 信息生成的标签。
+
+## 许可
+遵循仓库内 `LICENSE` 文件。
 
 ---
-
-## 📖 使用指南
-
-### Web界面使用
-
-#### 🔍 歌曲搜索
-1. 选择功能：**歌曲搜索**
-2. 输入关键词（歌曲名、歌手名等）
-3. 点击**搜索**按钮
-4. 在搜索结果中点击**解析**或**下载**按钮
-
-#### 🎧 单曲解析
-1. 选择功能：**单曲解析**
-2. 输入歌曲ID或网易云音乐链接
-   - 支持格式：`1234567890` 或 `https://music.163.com/song?id=1234567890`
-3. 点击**解析**按钮查看歌曲信息
-
-#### 📋 歌单解析
-1. 选择功能：**歌单解析**
-2. 输入歌单ID或网易云音乐歌单链接
-   - 支持格式：`1234567890` 或 `https://music.163.com/playlist?id=1234567890`
-3. 点击**解析**按钮查看歌单中所有歌曲
-4. 点击单首歌曲的**解析**或**下载**按钮
-
-#### 💿 专辑解析
-1. 选择功能：**专辑解析**
-2. 输入专辑ID或网易云音乐专辑链接
-   - 支持格式：`1234567890` 或 `https://music.163.com/album?id=1234567890`
-3. 点击**解析**按钮查看专辑中所有歌曲
-4. 点击单首歌曲的**解析**或**下载**按钮
-
-#### ⬇️ 音乐下载
-1. 选择功能：**音乐下载**
-2. 输入歌曲ID或链接
-3. 选择音质（标准/极高/无损/Hi-Res等）
-4. 点击**下载**按钮
-
-### 支持的链接格式
-
-```
-# 歌曲链接
-https://music.163.com/song?id=1234567890
-https://music.163.com/#/song?id=1234567890
-
-# 歌单链接
-https://music.163.com/playlist?id=1234567890
-https://music.163.com/#/playlist?id=1234567890
-
-# 专辑链接
-https://music.163.com/album?id=1234567890
-https://music.163.com/#/album?id=1234567890
-
-# 直接使用ID
-1234567890
-```
-
-## 🔌 API接口文档
-
-### 基础信息
-- **Base URL**: `http://localhost:5000`
-- **请求方式**: GET / POST
-- **响应格式**: JSON
-
-### 接口列表
-
-#### 1. 健康检查
-```http
-GET /health
-```
-**响应示例**:
-```json
-{
-  "status": "ok",
-  "message": "Service is running"
-}
-```
-
-#### 2. 歌曲搜索
-```http
-POST /search
-Content-Type: application/json
-
-{
-  "keywords": "周杰伦 稻香",
-  "limit": 10
-}
-```
-**响应示例**:
-```json
-{
-  "code": 200,
-  "result": {
-    "songs": [
-      {
-        "id": 185668,
-        "name": "稻香",
-        "artists": ["周杰伦"],
-        "album": "魔杰座",
-        "duration": 223000
-      }
-    ]
-  }
-}
-```
-
-#### 3. 单曲解析
-```http
-POST /song
-Content-Type: application/json
-
-{
-  "id": "185668"
-}
-```
-
-#### 4. 歌单解析
-```http
-POST /playlist
-Content-Type: application/json
-
-{
-  "id": "123456789"
-}
-```
-
-#### 5. 专辑解析
-```http
-POST /album
-Content-Type: application/json
-
-{
-  "id": "123456789"
-}
-```
-
-#### 6. 音乐下载
-```http
-POST /download
-Content-Type: application/json
-
-{
-  "id": "185668",
-  "quality": "lossless"
-}
-```
-**响应**: 直接返回音频文件流
-
----
-
-## 音质参数说明（仅限单曲解析）
-
-- `standard`：标准音质
-- `exhigh`：极高音质
-- `lossless`：无损音质
-- `hires`：Hi-Res音质
-- `jyeffect`：高清环绕声
-- `sky`：沉浸环绕声
-- `jymaster`：超清母带
-
-> 黑胶VIP音质：standard, exhigh, lossless, hires, jyeffect  
-> 黑胶SVIP音质：sky, jymaster
-
----
-
----
-
-## 在线演示
-
-[在线解析](https://api.toubiec.cn/wyapi.html)
-
----
-
-## 注意事项
-
-- 必须使用黑胶会员账号的 Cookie 才能解析高音质资源。
-- Cookie 格式请严格按照 `cookie.txt` 示例填写。
-
----
-
-## 致谢
-
-- [Ravizhan](https://github.com/ravizhan)
-
----
-
-## 反馈与交流
-
-- 在 Github [Issues](https://github.com/Suxiaoqinx/Netease_url/issues) 提交反馈
-- 或访问 [我的博客](https://www.toubiec.cn)
-
----
-
-欢迎 Star、Fork 和 PR！
-
+页脚说明：本项目前端页脚按要求保留英文专业风格、年自动更新、仓库链接，以及“Modified by riba2534 based on work by Suxiaoqingx”致谢。

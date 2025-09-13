@@ -216,8 +216,15 @@ class MusicAPIService:
             return {}
 
 
-# 创建Flask应用和服务实例
-config = APIConfig()
+# 创建Flask应用和服务实例（支持环境变量覆盖）
+config = APIConfig(
+    host=os.getenv('HOST', '0.0.0.0'),
+    port=int(os.getenv('PORT', '5000')),
+    debug=os.getenv('DEBUG', 'false').lower() == 'true',
+    downloads_dir=os.getenv('DOWNLOADS_DIR', 'downloads'),
+    log_level=os.getenv('LOG_LEVEL', 'INFO'),
+    cors_origins=os.getenv('CORS_ORIGINS', '*')
+)
 app = Flask(__name__)
 api_service = MusicAPIService(config)
 
