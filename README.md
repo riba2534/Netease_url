@@ -49,8 +49,9 @@
 ## 🚀 快速开始
 
 ### 环境要求
-- Python 3.7+
+- Python 3.10+
 - 网易云音乐黑胶会员账号
+- uv (Python包管理器)
 
 ### 安装步骤
 
@@ -60,9 +61,13 @@ git clone https://github.com/Suxiaoqinx/Netease_url.git
 cd Netease_url
 ```
 
-#### 2. 安装依赖
+#### 2. 安装uv和依赖
 ```bash
-pip install -r requirements.txt
+# 安装uv（如果未安装）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 使用uv安装依赖
+uv sync
 ```
 
 #### 3. 配置Cookie
@@ -72,22 +77,11 @@ pip install -r requirements.txt
 
 #### 4. 启动服务
 ```bash
-python main.py
+uv run main.py
 ```
 
 #### 5. 访问界面
 打开浏览器访问：`http://localhost:5000`
-
-### 🐳 Docker部署
-
-```bash
-# 使用Docker Compose
-docker-compose up -d
-
-# 或使用Docker
-docker build -t netease-music-api .
-docker run -d -p 5000:5000 netease-music-api
-```
 
 ---
 
@@ -253,23 +247,6 @@ Content-Type: application/json
 > 黑胶SVIP音质：sky, jymaster
 
 ---
-
-## Docker 一键部署
-
-1. **修改参数**
-
-   - 如需修改端口，请编辑 `.env` 或 `docker-compose.yml` 文件中的 `ports` 配置，例如：
-
-     ```yaml
-     ports:
-       - "8080:5000"
-     ```
-
-2. **启动服务**
-
-   ```bash
-   docker-compose up -d
-   ```
 
 ---
 
