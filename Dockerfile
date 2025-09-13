@@ -4,20 +4,24 @@ FROM python:3.10-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    UV_CACHE_DIR=/tmp/uv-cache
 
 WORKDIR /app
 
-# System deps (optional but useful for SSL/ID3, etc.)
+# System deps (required for health check and SSL/ID3)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 # Copy dependency specs first for better layer caching
-COPY requirements.txt ./
-RUN pip install --upgrade pip \
-    && pip install -r requirements.txt
+COPY pyproject.toml uv.lock ./
+
+# Install dependencies with uv
+RUN uv sync --frozen --no-dev
 
 # Copy app source
 COPY . .
@@ -25,8 +29,8 @@ COPY . .
 # Expose default port
 EXPOSE 5000
 
-# Create volumes: downloads and optional config dir for cookie.txt
-VOLUME ["/app/downloads", "/app/config"]
+# Create volume for downloads directory
+VOLUME ["/app/downloads"]
 
 # Healthcheck (basic)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
@@ -41,5 +45,5 @@ ENV HOST=0.0.0.0 \
     CORS_ORIGINS=* \
     COOKIE_FILE=cookie.txt
 
-# Run the app
-CMD ["python", "main.py"]
+# Run the app with uv
+CMD ["uv", "run", "main.py"]

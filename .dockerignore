@@ -23,5 +23,5 @@ downloads/
 Thumbs.db
 
 # Build
-uv.lock
+# uv.lock is needed for Docker builds
 

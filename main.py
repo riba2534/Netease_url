@@ -103,16 +103,70 @@ class MusicAPIService:
         self.downloads_path = Path(config.downloads_dir)
         self.downloads_path.mkdir(exist_ok=True)
 
-        # 如提供环境变量 COOKIE_STRING，则将其写入到 cookie 文件
-        cookie_env = os.getenv('COOKIE_STRING')
-        if cookie_env:
-            try:
-                self.cookie_manager.write_cookie(cookie_env)
-                self.logger.info("已从环境变量写入 Cookie 到文件")
-            except Exception as e:
-                self.logger.warning(f"从环境变量写入 Cookie 失败: {e}")
-        
+        # Cookie初始化逻辑
+        self._initialize_cookie()
+
         self.logger.info(f"音乐API服务初始化完成，下载目录: {self.downloads_path.absolute()}")
+
+    def _initialize_cookie(self):
+        """初始化Cookie配置
+
+        优先级：
+        1. 环境变量 COOKIE_STRING
+        2. 挂载的Cookie文件
+        3. 默认Cookie文件（如果存在且有效）
+        4. 使用内置默认Cookie
+        """
+        try:
+            # 优先级1: 环境变量 COOKIE_STRING
+            cookie_env = os.getenv('COOKIE_STRING')
+            if cookie_env and cookie_env.strip():
+                try:
+                    self.cookie_manager.write_cookie(cookie_env.strip())
+                    self.logger.info("✅ 已从环境变量 COOKIE_STRING 设置 Cookie")
+                    return
+                except Exception as e:
+                    self.logger.warning(f"从环境变量写入 Cookie 失败: {e}")
+
+            # 优先级2: 检查当前Cookie文件是否存在且有效
+            try:
+                current_cookie = self.cookie_manager.read_cookie()
+                if current_cookie and current_cookie.strip():
+                    # 验证Cookie格式
+                    if self.cookie_manager.validate_cookie_format(current_cookie):
+                        self.logger.info("✅ 使用现有的 Cookie 文件配置")
+                        return
+                    else:
+                        self.logger.warning("现有 Cookie 文件格式无效，将使用默认配置")
+                else:
+                    self.logger.info("Cookie 文件为空，将使用默认配置")
+            except Exception as e:
+                self.logger.warning(f"读取 Cookie 文件失败: {e}")
+
+            # 优先级3: 使用默认Cookie（从项目内置的cookie.txt读取）
+            default_cookie_path = Path(__file__).parent / 'cookie.txt'
+            if default_cookie_path.exists():
+                try:
+                    default_cookie = default_cookie_path.read_text(encoding='utf-8').strip()
+                    if default_cookie and self.cookie_manager.validate_cookie_format(default_cookie):
+                        # 如果用户指定的cookie文件不存在或为空，写入默认Cookie
+                        if not self.cookie_manager.cookie_file.exists() or not self.cookie_manager.read_cookie().strip():
+                            self.cookie_manager.write_cookie(default_cookie)
+                            self.logger.info("✅ 已设置默认 Cookie 配置")
+                            return
+                    else:
+                        self.logger.warning("默认 Cookie 文件格式无效")
+                except Exception as e:
+                    self.logger.warning(f"读取默认 Cookie 失败: {e}")
+
+            # 如果以上都失败，记录警告
+            self.logger.warning("⚠️  未找到有效的 Cookie 配置，部分功能可能受限")
+            self.logger.info("请通过以下方式之一配置 Cookie：")
+            self.logger.info("1. 设置环境变量: COOKIE_STRING='你的完整Cookie'")
+            self.logger.info("2. 挂载 Cookie 文件到: /app/cookie.txt")
+
+        except Exception as e:
+            self.logger.error(f"Cookie 初始化失败: {e}")
     
     def _setup_logger(self) -> logging.Logger:
         """设置日志记录器"""

@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  netease-music-api:
+    image: ${DOCKER_IMAGE:-riba2534/netease_url:latest}
+    container_name: netease-music-api
+    ports:
+      - "${HOST_PORT:-5000}:5000"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 5000
+      DEBUG: "false"
+      DOWNLOADS_DIR: downloads
+      LOG_LEVEL: INFO
+      CORS_ORIGINS: "*"
+      # 可选：设置自定义Cookie（优先级最高）
+      # 如果不设置，容器将使用项目内置的默认Cookie
+      # COOKIE_STRING: "_iuqxldmzr_=32; _ntes_nnid=xxx; MUSIC_U=你的完整MUSIC_U值; __csrf=xxx; 其他完整Cookie内容"
+    volumes:
+      # 下载目录（必需）
+      - ./downloads:/app/downloads
+      # 可选：挂载自定义Cookie文件（如果不挂载，使用默认Cookie）
+      # - ./cookie.txt:/app/cookie.txt:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+networks:
+  default:
+    name: netease-music-network
