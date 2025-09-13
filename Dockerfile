@@ -5,25 +5,30 @@ FROM python:3.10-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
-    UV_CACHE_DIR=/tmp/uv-cache
+    UV_CACHE_DIR=/tmp/uv-cache \
+    UV_PYTHON_PREFERENCE=only-system \
+    UV_PYTHON=/usr/local/bin/python
 
 WORKDIR /app
 
-# System deps (required for health check and SSL/ID3)
+# System deps (needed for healthcheck + SSL)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
        curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
+# Install uv (single static binary)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 # Copy dependency specs first for better layer caching
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies with uv - sync in system mode for faster runtime
+# Install dependencies into a local .venv (from lockfile)
 RUN uv sync --frozen --no-dev \
     && uv cache clean
+
+# Ensure venv is preferred on PATH at runtime
+ENV PATH="/app/.venv/bin:${PATH}"
 
 # Copy app source
 COPY . .
@@ -31,7 +36,8 @@ COPY . .
 # Expose default port
 EXPOSE 5000
 
-# Create volume for downloads directory
+# Create volume for downloads directory and make sure it's writeable by non-root
+RUN mkdir -p /app/downloads && chmod -R 775 /app/downloads
 VOLUME ["/app/downloads"]
 
 # Healthcheck (basic)
@@ -47,5 +53,5 @@ ENV HOST=0.0.0.0 \
     CORS_ORIGINS=* \
     COOKIE_FILE=cookie.txt
 
-# Run with uv run as requested
+# Run with uv
 CMD ["uv", "run", "main.py"]
