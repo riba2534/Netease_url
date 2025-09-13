@@ -1,9 +1,10 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.10-slim AS runtime
+FROM python:3.10-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
     UV_CACHE_DIR=/tmp/uv-cache
 
 WORKDIR /app
@@ -20,8 +21,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 # Copy dependency specs first for better layer caching
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies with uv
-RUN uv sync --frozen --no-dev
+# Install dependencies with uv - sync in system mode for faster runtime
+RUN uv sync --frozen --no-dev \
+    && uv cache clean
 
 # Copy app source
 COPY . .
@@ -45,5 +47,5 @@ ENV HOST=0.0.0.0 \
     CORS_ORIGINS=* \
     COOKIE_FILE=cookie.txt
 
-# Run the app with uv
+# Run with uv run as requested
 CMD ["uv", "run", "main.py"]

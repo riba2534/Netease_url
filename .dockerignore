@@ -14,9 +14,9 @@ venv/
 
 # Local files
 .env
-cookie.txt
 music_api.log
 downloads/
+# Note: cookie.txt is included as default configuration
 
 # OS
 .DS_Store

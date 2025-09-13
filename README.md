@@ -1,254 +1,48 @@
-# 网易云音乐 API 服务
+# 🎵 网易云音乐无损解析工具
 
-一个基于 Flask 的网易云音乐解析与下载服务，支持歌曲信息获取、搜索、歌单与专辑解析、单曲下载与批量下载。提供完整的 Docker 支持，便于快速部署。
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.10+-blue.svg" alt="Python">
+  <img src="https://img.shields.io/badge/Docker-Ready-green.svg" alt="Docker">
+  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License">
+  <img src="https://img.shields.io/badge/Status-Active-success.svg" alt="Status">
+</p>
 
-## 功能特性
+一个强大的网易云音乐API服务，支持无损音质解析、歌曲搜索、歌单/专辑批量下载等功能。基于Flask构建，提供RESTful API接口，支持Docker一键部署。
 
-- 🎵 **单曲解析**：支持网易云音乐链接/ID解析，获取下载链接、歌词等信息
-- 🔍 **音乐搜索**：关键词搜索歌曲，支持分页
-- 📋 **歌单/专辑解析**：获取完整的歌单或专辑详情信息
-- ⬇️ **音乐下载**：单曲下载，支持多种音质（标准到超清母带）
-- 📦 **批量下载**：歌单/专辑批量下载，生成ZIP文件，附下载报告
-- 🌐 **Web界面**：内置简洁前端页面，支持一键操作
-- 🏥 **健康检查**：提供 `/health` 接口监控服务状态
-- 📊 **实时进度**：批量下载支持 SSE 实时进度反馈
+## ✨ 核心功能
 
-## 快速开始
+- 🎵 **单曲解析** - 支持通过ID或URL解析歌曲，获取多种音质下载链接
+- 🔍 **音乐搜索** - 通过关键词搜索歌曲，支持分页和结果限制
+- 📀 **歌单解析** - 批量获取歌单内所有歌曲信息
+- 💿 **专辑解析** - 批量获取专辑内所有歌曲信息
+- 📥 **音乐下载** - 自动下载并嵌入元数据（封面、歌词、艺术家等）
+- 🎹 **音质选择** - 支持从标准到Hi-Res母带的7种音质级别
+- 🌐 **Web界面** - 提供友好的网页操作界面
 
-### 方式一：Docker Compose（推荐）
+## 🎨 支持的音质级别
 
-1. 创建项目目录并切换到该目录：
+| 音质级别 | 说明 | 比特率 | 格式 | 会员要求 |
+|---------|------|--------|------|----------|
+| `standard` | 标准音质 | 128kbps | MP3 | 无 |
+| `exhigh` | 极高音质 | 320kbps | MP3 | 无 |
+| `lossless` | 无损音质 | 850kbps+ | FLAC | 黑胶VIP |
+| `hires` | Hi-Res音质 | 1700kbps+ | FLAC | 黑胶VIP |
+| `jyeffect` | 高清环绕声 | - | FLAC | 黑胶VIP |
+| `sky` | 沉浸环绕声 | - | FLAC | 黑胶SVIP |
+| `jymaster` | 超清母带 | 24bit/192kHz | FLAC | 黑胶SVIP |
+
+## 🚀 快速开始
+
+### 方式一：Docker 部署（推荐）
+
+#### 最简单运行
 ```bash
-mkdir netease-music-api && cd netease-music-api
+docker run -d -p 5000:5000 riba2534/netease_url:latest
 ```
 
-2. 下载配置文件：
-```bash
-# 下载 docker-compose.yml
-wget https://raw.githubusercontent.com/riba2534/Netease_url/main/docker-compose.yml
+#### 使用 docker-compose（推荐）
 
-# 或者手动创建 docker-compose.yml
-cat > docker-compose.yml << 'EOF'
-version: '3.8'
-
-services:
-  netease-music-api:
-    image: riba2534/netease_url:latest
-    container_name: netease-music-api
-    ports:
-      - "${HOST_PORT:-5000}:5000"
-    environment:
-      HOST: 0.0.0.0
-      PORT: 5000
-      DEBUG: "false"
-      DOWNLOADS_DIR: downloads
-      LOG_LEVEL: INFO
-      CORS_ORIGINS: "*"
-      # 方式1: 直接设置Cookie（推荐，取消注释并填入您的Cookie）
-      # COOKIE_STRING: "_iuqxldmzr_=32; _ntes_nnid=xxx; MUSIC_U=你的完整MUSIC_U值; __csrf=xxx;"
-    volumes:
-      - ./downloads:/app/downloads
-      # 方式2: 挂载Cookie文件（可选，如使用方式1请注释掉下一行）
-      - ./cookie.txt:/app/cookie.txt:ro
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-networks:
-  default:
-    name: netease-music-network
-EOF
-```
-
-3. 配置 Cookie（二选一）：
-
-**方法A：使用环境变量（推荐）**
-```bash
-# 编辑 docker-compose.yml，取消 COOKIE_STRING 注释并填入完整Cookie
-# COOKIE_STRING: "你的完整Cookie字符串"
-```
-
-**方法B：使用Cookie文件**
-```bash
-# 创建 cookie.txt 文件
-echo "你的完整Cookie字符串" > cookie.txt
-```
-
-4. 启动服务：
-```bash
-# 前台启动（查看日志）
-docker compose up
-
-# 后台启动
-docker compose up -d
-
-# 查看日志
-docker compose logs -f
-```
-
-5. 访问服务：
-```bash
-# 浏览器访问 Web 界面
-open http://localhost:5000
-
-# 命令行测试健康检查
-curl http://localhost:5000/health
-```
-
-### 方式二：Docker 命令行
-
-```bash
-# 1. 拉取最新镜像
-docker pull riba2534/netease_url:latest
-
-# 2. 创建必要目录
-mkdir -p downloads
-
-# 3. 运行容器（环境变量方式）
-docker run -d \
-  --name netease-music-api \
-  -p 5000:5000 \
-  -v $(pwd)/downloads:/app/downloads \
-  -e COOKIE_STRING="你的完整Cookie字符串" \
-  -e LOG_LEVEL=INFO \
-  --restart unless-stopped \
-  riba2534/netease_url:latest
-
-# 或者使用Cookie文件方式
-echo "你的完整Cookie字符串" > cookie.txt
-docker run -d \
-  --name netease-music-api \
-  -p 5000:5000 \
-  -v $(pwd)/downloads:/app/downloads \
-  -v $(pwd)/cookie.txt:/app/cookie.txt:ro \
-  --restart unless-stopped \
-  riba2534/netease_url:latest
-```
-
-### 方式三：本地开发
-
-```bash
-# 克隆项目
-git clone https://github.com/riba2534/Netease_url.git
-cd Netease_url
-
-# 使用 uv 管理依赖（推荐）
-uv sync
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# 配置 Cookie
-echo "MUSIC_U=你的MUSIC_U值;os=pc;appver=8.9.70;" > cookie.txt
-
-# 运行服务
-python main.py
-```
-
-## Cookie 配置
-
-### 📋 获取完整 Cookie 的方法
-
-1. **登录网易云音乐**：
-   - 访问 [网易云音乐网页版](https://music.163.com)
-   - 使用您的黑胶VIP账号登录
-
-2. **获取完整Cookie**：
-   - 按 `F12` 打开开发者工具
-   - 切换到 `Network` 标签页
-   - 刷新页面或播放一首歌曲
-   - 找到任意一个请求（推荐选择 `/api/` 开头的请求）
-   - 点击请求，在 `Headers` 中找到 `Cookie` 字段
-   - **复制完整的Cookie字符串**（不只是MUSIC_U）
-
-3. **Cookie 格式示例**：
-```
-_iuqxldmzr_=32; _ntes_nnid=xxx; NMTID=xxx; MUSIC_U=你的MUSIC_U值; __csrf=xxx; JSESSIONID-WYYY=xxx; 其他Cookie值
-```
-
-### 🔧 配置方式
-
-**方式一：环境变量（推荐）**
-```bash
-# Docker Compose 中设置
-COOKIE_STRING: "你的完整Cookie字符串"
-
-# Docker 命令行中设置
--e COOKIE_STRING="你的完整Cookie字符串"
-```
-
-**方式二：Cookie文件**
-```bash
-# 创建 cookie.txt 文件
-echo "你的完整Cookie字符串" > cookie.txt
-
-# Docker 中挂载文件
--v $(pwd)/cookie.txt:/app/cookie.txt:ro
-```
-
-### ⚠️ 重要说明
-
-- **推荐使用黑胶VIP账号**：获得所有音质和功能支持
-- **Cookie会过期**：通常1-7天，需要定期更新
-- **保护隐私**：Cookie包含敏感信息，不要泄露给他人
-- **完整Cookie更稳定**：比只使用MUSIC_U更不容易被限制
-
-## API 接口
-
-### 基础接口
-- `GET  /` - Web 前端页面
-- `GET  /health` - 健康检查
-- `GET  /api/info` - API 信息
-
-### 音乐相关接口
-- `GET/POST /song` - 获取单曲信息
-  - 参数：`id` 或 `url`（音乐ID或网易云链接），`level`（音质等级），`type`（返回类型）
-- `GET/POST /search` - 搜索音乐
-  - 参数：`keyword`（搜索关键词），`limit`（限制数量），`offset`（偏移量）
-- `GET/POST /playlist` - 获取歌单详情
-  - 参数：`id`（歌单ID）
-- `GET/POST /album` - 获取专辑详情
-  - 参数：`id`（专辑ID）
-
-### 下载接口
-- `GET/POST /download` - 单曲下载
-  - 参数：`id`（音乐ID），`quality`（音质），`format`（返回格式：file/json）
-- `POST /batch_download` - 批量下载（传统方式）
-- `POST /batch_download_v2` - 批量下载任务（SSE进度）
-- `GET  /download_progress/<task_id>` - SSE 进度监控
-- `GET  /download_result/<task_id>` - 获取下载结果ZIP
-
-## 音质支持
-
-| 音质等级 | 说明 | 会员要求 |
-|---------|------|----------|
-| `standard` | 标准音质 (128kbps) | 普通用户 |
-| `exhigh` | 极高音质 (320kbps) | VIP |
-| `lossless` | 无损音质 (FLAC) | VIP |
-| `hires` | Hi-Res音质 (24bit) | 黑胶VIP |
-| `jyeffect` | 高清环绕声 | 黑胶VIP |
-| `sky` | 沉浸环绕声 | 黑胶SVIP |
-| `jymaster` | 超清母带 | 黑胶SVIP |
-
-## 环境变量
-
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `HOST` | `0.0.0.0` | 服务绑定地址 |
-| `PORT` | `5000` | 服务端口 |
-| `DEBUG` | `false` | 是否开启调试模式 |
-| `DOWNLOADS_DIR` | `downloads` | 下载目录 |
-| `LOG_LEVEL` | `INFO` | 日志级别 |
-| `CORS_ORIGINS` | `*` | CORS 允许的源 |
-| `COOKIE_FILE` | `cookie.txt` | Cookie 文件路径 |
-| `COOKIE_STRING` | - | 直接设置 Cookie 内容 |
-
-## 部署示例
-
-### 使用 Docker Compose
-
+1. 创建 `docker-compose.yml` 文件：
 ```yaml
 version: '3.8'
 
@@ -258,194 +52,344 @@ services:
     container_name: netease-music-api
     ports:
       - "5000:5000"
-    environment:
-      HOST: 0.0.0.0
-      PORT: 5000
-      LOG_LEVEL: INFO
-      COOKIE_STRING: "MUSIC_U=你的MUSIC_U值;os=pc;appver=8.9.70;"
     volumes:
       - ./downloads:/app/downloads
+    environment:
+      - LOG_LEVEL=INFO
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 ```
 
-### 反向代理配置（Nginx）
+2. 启动服务：
+```bash
+docker-compose up -d
+```
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
+#### 高级配置
 
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+使用自定义Cookie（黑胶VIP）：
+```bash
+docker run -d \
+  -p 5000:5000 \
+  -v ./downloads:/app/downloads \
+  -e COOKIE_STRING="你的完整Cookie字符串" \
+  riba2534/netease_url:latest
+```
 
-        # SSE 支持
-        proxy_buffering off;
-        proxy_cache off;
-        proxy_set_header Connection '';
-        proxy_http_version 1.1;
-        chunked_transfer_encoding off;
-    }
+### 方式二：本地部署
+
+#### 环境要求
+- Python 3.10+
+- uv (推荐) 或 pip
+
+#### 安装步骤
+
+1. 克隆项目：
+```bash
+git clone https://github.com/riba2534/Netease_url.git
+cd Netease_url
+```
+
+2. 安装依赖（使用uv）：
+```bash
+# 安装uv（如果未安装）
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 安装项目依赖
+uv sync
+```
+
+3. 配置Cookie（可选，用于获取高音质）：
+   - 将你的网易云音乐Cookie保存到 `cookie.txt` 文件
+
+4. 运行服务：
+```bash
+uv run main.py
+```
+
+## 🔑 Cookie 获取方法
+
+要获取无损音质，需要黑胶VIP账号的Cookie：
+
+1. 登录[网易云音乐网页版](https://music.163.com)
+2. 按 `F12` 打开开发者工具
+3. 切换到 `Network` 标签页
+4. 刷新页面，找到任意请求
+5. 在请求头中找到 `Cookie` 字段，复制全部内容
+6. 重点关注 `MUSIC_U` 字段（这是最重要的认证信息）
+
+### Cookie 配置方式
+
+#### Docker环境：
+```bash
+# 方式1：环境变量（推荐）
+docker run -d -e COOKIE_STRING="完整Cookie内容" ...
+
+# 方式2：挂载文件
+docker run -d -v ./cookie.txt:/app/cookie.txt ...
+```
+
+#### 本地环境：
+直接编辑项目根目录的 `cookie.txt` 文件
+
+## 📡 API 接口文档
+
+### 基础信息
+
+- **基础URL**: `http://localhost:5000`
+- **响应格式**: JSON
+- **字符编码**: UTF-8
+
+### 接口列表
+
+#### 1. 健康检查
+```http
+GET /health
+```
+
+响应示例：
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "API服务运行正常",
+  "data": {
+    "service": "running",
+    "cookie_status": "valid",
+    "version": "2.0.0"
+  }
 }
 ```
 
-## 🐳 Docker 管理命令
+#### 2. 获取歌曲信息
+```http
+POST /song
+```
 
-### 容器管理
+请求参数：
+```json
+{
+  "id": "167827",           // 歌曲ID
+  "quality": "lossless"     // 音质级别（可选）
+}
+```
+
+响应示例：
+```json
+{
+  "status": 200,
+  "success": true,
+  "message": "获取歌曲URL成功",
+  "data": {
+    "id": 167827,
+    "url": "http://...",
+    "bitrate": 924151,
+    "size": 27568111,
+    "size_formatted": "26.29MB",
+    "type": "flac",
+    "level": "lossless",
+    "quality_name": "无损音质"
+  }
+}
+```
+
+#### 3. 搜索音乐
+```http
+POST /search
+GET /search?keyword=告白气球&limit=10
+```
+
+请求参数：
+```json
+{
+  "keyword": "告白气球",
+  "limit": 10,
+  "offset": 0
+}
+```
+
+#### 4. 获取歌单详情
+```http
+POST /playlist
+```
+
+请求参数：
+```json
+{
+  "playlist_id": "2859214503"
+}
+```
+
+#### 5. 获取专辑详情
+```http
+POST /album
+```
+
+请求参数：
+```json
+{
+  "album_id": "34720827"
+}
+```
+
+#### 6. 下载音乐
+```http
+POST /download
+```
+
+请求参数：
+```json
+{
+  "music_id": "167827",
+  "quality": "lossless"
+}
+```
+
+返回：音频文件流（自动嵌入元数据）
+
+#### 7. 批量下载
+```http
+POST /batch_download
+```
+
+支持SSE（Server-Sent Events）实时进度推送。
+
+## 🐳 Docker 镜像管理
+
+### 拉取最新镜像
 ```bash
-# 查看容器状态
-docker ps -a | grep netease
+docker pull riba2534/netease_url:latest
+```
 
-# 查看容器日志
+### 查看容器日志
+```bash
 docker logs -f netease-music-api
-
-# 进入容器
-docker exec -it netease-music-api bash
-
-# 重启容器
-docker restart netease-music-api
-
-# 停止容器
-docker stop netease-music-api
-
-# 删除容器
-docker rm netease-music-api
-
-# 删除镜像
-docker rmi riba2534/netease_url:latest
 ```
 
-### Docker Compose 管理
+### 进入容器调试
 ```bash
-# 启动服务
-docker compose up -d
-
-# 查看状态
-docker compose ps
-
-# 查看日志
-docker compose logs -f
-
-# 重启服务
-docker compose restart
-
-# 停止服务
-docker compose down
-
-# 停止并删除数据卷
-docker compose down -v
-
-# 更新镜像
-docker compose pull
-docker compose up -d
+docker exec -it netease-music-api /bin/bash
 ```
 
-### 故障排查
+### 更新镜像
 ```bash
-# 检查容器健康状态
-docker inspect netease-music-api | grep -A 10 Health
-
-# 检查端口占用
-netstat -tlnp | grep 5000
-lsof -i :5000
-
-# 检查磁盘空间
-df -h
-docker system df
-
-# 清理Docker缓存
-docker system prune -a
+docker-compose pull
+docker-compose up -d
 ```
 
-## 🔧 本地构建和推送
+## 🛠️ 环境变量配置
 
-### 本地构建
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `HOST` | 0.0.0.0 | 服务监听地址 |
+| `PORT` | 5000 | 服务端口 |
+| `DEBUG` | false | 调试模式 |
+| `LOG_LEVEL` | INFO | 日志级别 |
+| `DOWNLOADS_DIR` | downloads | 下载目录 |
+| `COOKIE_FILE` | cookie.txt | Cookie文件路径 |
+| `COOKIE_STRING` | - | Cookie字符串（优先级最高） |
+| `CORS_ORIGINS` | * | CORS允许的源 |
+
+## 📂 项目结构
+
+```
+Netease_url/
+├── main.py              # Flask应用主入口
+├── music_api.py         # 网易云API核心逻辑
+├── music_downloader.py  # 下载和元数据处理
+├── cookie_manager.py    # Cookie管理模块
+├── qr_login.py         # 二维码登录（可选）
+├── templates/          # Web界面模板
+├── static/            # 静态资源
+├── downloads/         # 下载文件存储
+├── cookie.txt        # Cookie配置文件
+├── Dockerfile        # Docker镜像定义
+├── docker-compose.yml # Docker编排配置
+└── pyproject.toml    # 项目依赖配置
+```
+
+## 🔧 开发指南
+
+### 本地开发环境
+
 ```bash
-# 构建镜像（使用uv管理依赖）
-docker build -t riba2534/netease_url:latest .
+# 克隆项目
+git clone https://github.com/riba2534/Netease_url.git
+cd Netease_url
 
-# 构建时指定平台
-docker buildx build --platform linux/amd64,linux/arm64 -t riba2534/netease_url:latest .
+# 安装uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 推送到 Docker Hub
-docker push riba2534/netease_url:latest
+# 安装依赖
+uv sync
+
+# 运行开发服务器
+DEBUG=true uv run main.py
 ```
 
-### 使用脚本
+### 构建Docker镜像
+
 ```bash
-# 使用内置脚本构建并推送
-chmod +x scripts/docker_build_push.sh
-./scripts/docker_build_push.sh [标签名]
+# 构建镜像
+docker build -t netease_url:dev .
+
+# 测试运行
+docker run -p 5000:5000 netease_url:dev
 ```
 
-### 构建要求
-- 项目使用 `uv` 进行依赖管理
-- 需要 `pyproject.toml` 和 `uv.lock` 文件
-- 不再需要 `requirements.txt` 文件
+### 代码风格
 
-## 目录结构
+- 使用 `ruff` 进行代码检查
+- 遵循 PEP 8 规范
+- 类型注解使用 `typing` 模块
 
-```
-.
-├── main.py                 # Flask 应用主入口
-├── music_api.py            # 网易云音乐 API 封装
-├── music_downloader.py     # 音乐下载器
-├── cookie_manager.py       # Cookie 管理器
-├── download_progress.py    # 下载进度管理
-├── enhanced_download.py    # 增强下载功能
-├── qr_login.py            # 二维码登录
-├── templates/             # Web 前端模板
-│   └── index.html
-├── Dockerfile             # Docker 构建文件
-├── docker-compose.yml     # Docker Compose 配置
-├── requirements.txt       # Python 依赖
-└── scripts/               # 辅助脚本
-    └── docker_build_push.sh
-```
+## 🐛 故障排查
 
-## 注意事项
+### Cookie无效
+- 确认Cookie包含完整的 `MUSIC_U` 字段
+- 检查Cookie是否过期（通常有效期30天）
+- 尝试重新登录获取新Cookie
 
-1. **Cookie 要求**：需要有效的网易云音乐 Cookie，建议使用黑胶会员账号以获得完整功能
-2. **版权限制**：某些歌曲可能因版权限制无法下载
-3. **存储空间**：批量下载会占用大量存储空间，请确保有足够空间
-4. **网络要求**：需要稳定的网络连接访问网易云音乐服务器
-5. **使用限制**：请遵守相关法律法规，仅用于个人学习研究
+### 无法获取无损音质
+- 确认账号是黑胶VIP会员
+- 检查Cookie配置是否正确
+- 查看容器日志：`docker logs netease-music-api`
 
-## 更新日志
+### 下载失败
+- 检查下载目录权限
+- 确认磁盘空间充足
+- 查看详细错误日志
 
-### v2.2.0 (2025-09-13)
-- 🚀 **重大更新**：Docker构建完全迁移到 uv 依赖管理
-- 🔧 **优化构建**：移除 requirements.txt，使用 pyproject.toml + uv.lock
-- 📦 **镜像优化**：更快的依赖安装速度（10-100倍提升）
-- 🍪 **Cookie增强**：更新默认Cookie配置，支持完整Cookie字符串
-- 📚 **文档完善**：重写Docker使用方法，提供完整的管理命令
-- ✅ **配置优化**：完善 docker-compose.yml 和 .dockerignore
+## 📜 许可证
 
-### v2.1.0 (2025-09-13)
-- ✅ 修复 Dockerfile 配置问题
-- ✅ 新增 docker-compose.yml 配置文件
-- ✅ 更新依赖包到最新安全版本
-- ✅ 优化 Docker 镜像大小和安全性
-- ✅ 完善健康检查机制
-- ✅ 更新文档和部署说明
+本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
 
-## 许可证
+## 🤝 贡献
 
-本项目基于现有开源项目修改，遵循原项目许可证。
+欢迎提交 Issue 和 Pull Request！
 
-## 致谢
+### 贡献步骤
 
-Modified by riba2534 based on work by Suxiaoqingx
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+## 🙏 致谢
+
+- 网易云音乐API逆向工程社区
+- Flask框架开发团队
+- 所有贡献者和用户
+
+## ⚠️ 免责声明
+
+本项目仅供学习和研究使用。请勿用于商业用途或侵犯版权的行为。使用本项目产生的任何法律责任由使用者自行承担。
+
+## 📮 联系方式
+
+- GitHub: [@riba2534](https://github.com/riba2534)
+- Issues: [项目问题反馈](https://github.com/riba2534/Netease_url/issues)
 
 ---
 
-**访问地址**：服务启动后访问 http://localhost:5000
+<p align="center">Made with ❤️ by riba2534</p>

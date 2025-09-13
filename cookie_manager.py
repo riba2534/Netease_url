@@ -47,14 +47,9 @@ class CookieManager:
         self.cookie_file = Path(cookie_file)
         self.logger = logging.getLogger(__name__)
         
-        # 网易云音乐相关的重要Cookie字段
+        # 网易云音乐相关的重要Cookie字段（只检查最核心的）
         self.important_cookies = {
-            'MUSIC_U',      # 用户标识
-            'MUSIC_A',      # 用户认证
-            '__csrf',       # CSRF令牌
-            'NMTID',        # 设备标识
-            'WEVNSM',       # 会话管理
-            'WNMCID',       # 客户端标识
+            'MUSIC_U',      # 用户标识（最重要）
         }
         
         # 确保cookie文件存在
