@@ -23,7 +23,7 @@ import requests
 from mutagen.flac import FLAC
 from mutagen.mp3 import MP3
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, APIC
-from mutagen.mp4 import MP4
+from mutagen.mp4 import MP4, MP4Cover
 
 from music_api import NeteaseAPI, APIException
 from cookie_manager import CookieManager
@@ -440,6 +440,12 @@ class MusicDownloader:
         """写入MP3标签"""
         try:
             audio = MP3(str(file_path), ID3=ID3)
+            # Ensure ID3 tags container exists
+            if audio.tags is None:
+                try:
+                    audio.add_tags()
+                except Exception:
+                    pass
             
             # 添加ID3标签
             audio.tags.add(TIT2(encoding=3, text=music_info.name))
@@ -517,7 +523,8 @@ class MusicDownloader:
                 try:
                     pic_response = requests.get(music_info.pic_url, timeout=10)
                     pic_response.raise_for_status()
-                    audio['covr'] = [pic_response.content]
+                    # Prefer MP4Cover wrapper for proper tagging
+                    audio['covr'] = [MP4Cover(pic_response.content, imageformat=MP4Cover.FORMAT_JPEG)]
                 except:
                     pass  # 封面下载失败不影响主流程
             

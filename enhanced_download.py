@@ -92,7 +92,12 @@ def setup_enhanced_download_routes(app, api_service, APIResponse, playlist_detai
                     yield APIResponse.sse_message({'error': str(e)})
                     break
 
-        return Response(generate(), mimetype='text/event-stream')
+        resp = Response(generate(), mimetype='text/event-stream')
+        # Improve SSE reliability on proxies and clients
+        resp.headers['Cache-Control'] = 'no-cache'
+        resp.headers['X-Accel-Buffering'] = 'no'
+        resp.headers['Connection'] = 'keep-alive'
+        return resp
 
     @app.route('/download_result/<task_id>')
     def download_result(task_id):
@@ -127,8 +132,14 @@ def setup_enhanced_download_routes(app, api_service, APIResponse, playlist_detai
                 download_name=download_name,
                 mimetype='application/zip'
             )
-
-            response.call_on_close = cleanup
+            # 正确注册请求结束后的清理函数
+            try:
+                response.call_on_close(cleanup)
+            except Exception:
+                # 兼容旧版Flask：降级为立即注册的装饰器方式
+                @response.call_on_close
+                def _cleanup():
+                    cleanup()
             return response
 
         except Exception as e:
@@ -156,7 +167,7 @@ def background_batch_download(task_id: str, tracks: list, quality: str, playlist
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for idx, track in enumerate(tracks):
                 try:
-                    track_id = str(track['id'])
+                    track_id = int(track['id'])
                     track_name = track['name']
                     artists = track.get('artists', '未知歌手')
 

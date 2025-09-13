@@ -311,8 +311,12 @@ def get_song_info():
         if not song_ids and not url:
             return APIResponse.error("必须提供 'ids'、'id' 或 'url' 参数")
         
-        # 提取音乐ID
-        music_id = api_service._extract_music_id(song_ids or url)
+        # 提取并校验音乐ID（确保为整数）
+        music_id_raw = api_service._extract_music_id(song_ids or url)
+        try:
+            music_id = int(str(music_id_raw))
+        except (TypeError, ValueError):
+            return APIResponse.error("无效的音乐ID", 400)
         
         # 验证音质参数
         valid_levels = ['standard', 'exhigh', 'lossless', 'hires', 'sky', 'jyeffect', 'jymaster']
@@ -525,7 +529,12 @@ def download_music_api():
         if return_format not in ['file', 'json']:
             return APIResponse.error("返回格式只支持 'file' 或 'json'")
         
-        music_id = api_service._extract_music_id(music_id)
+        # 解析并校验音乐ID（确保为整数）
+        music_id_raw = api_service._extract_music_id(music_id)
+        try:
+            music_id = int(str(music_id_raw))
+        except (TypeError, ValueError):
+            return APIResponse.error("无效的音乐ID", 400)
         cookies = api_service._get_cookies()
         
         # 获取音乐基本信息
@@ -575,6 +584,7 @@ def download_music_api():
                     return APIResponse.error(f"下载失败: {download_result.error_message}", 500)
                 
                 file_path = Path(download_result.file_path)
+                filename = file_path.name
                 api_service.logger.info(f"下载完成: {filename}")
                 
             except DownloadException as e:
@@ -590,11 +600,11 @@ def download_music_api():
                 'album': music_info['album'],
                 'quality': quality,
                 'quality_name': api_service._get_quality_display_name(quality),
-                'file_type': music_info['file_type'],
-                'file_size': music_info['file_size'],
-                'file_size_formatted': api_service._format_file_size(music_info['file_size']),
+                'file_type': file_path.suffix.lstrip('.').lower(),
+                'file_size': file_path.stat().st_size,
+                'file_size_formatted': api_service._format_file_size(file_path.stat().st_size),
                 'file_path': str(file_path.absolute()),
-                'filename': filename,
+                'filename': file_path.name,
                 'duration': music_info['duration']
             }
             return APIResponse.success(response_data, "下载完成")
@@ -604,14 +614,11 @@ def download_music_api():
                 return APIResponse.error("文件不存在", 404)
             
             try:
-                response = send_file(
-                    str(file_path),
-                    as_attachment=True,
-                    download_name=filename,
-                    mimetype=f"audio/{music_info['file_type']}"
-                )
+                ext = file_path.suffix.lstrip('.').lower()
+                mimetype = f"audio/{ext}" if ext in ['mp3','flac','m4a'] else 'application/octet-stream'
+                response = send_file(str(file_path), as_attachment=True, download_name=file_path.name, mimetype=mimetype)
                 response.headers['X-Download-Message'] = 'Download completed successfully'
-                response.headers['X-Download-Filename'] = quote(filename, safe='')
+                response.headers['X-Download-Filename'] = quote(file_path.name, safe='')
                 return response
             except Exception as e:
                 api_service.logger.error(f"发送文件失败: {e}")
@@ -667,7 +674,7 @@ def batch_download_music():
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for idx, track in enumerate(tracks):
                 try:
-                    track_id = str(track['id'])
+                    track_id = int(track['id'])
                     track_name = track['name']
                     artists = track.get('artists', '未知歌手')
                     
