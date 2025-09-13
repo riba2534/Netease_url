@@ -17,11 +17,12 @@
 # 构建镜像（位于项目根目录）
 docker build -t netease-music-api:latest .
 
-# 运行容器（映射端口与下载目录）
+# 运行容器（映射端口、下载目录、cookie.txt）
 docker run -d \
   --name netease-music-api \
   -p 5000:5000 \
   -v $(pwd)/downloads:/app/downloads \
+  -v $(pwd)/cookie.txt:/app/cookie.txt:ro \
   -e LOG_LEVEL=INFO \
   netease-music-api:latest
 
@@ -69,6 +70,7 @@ docker run -d \
   --name netease-music-api \
   -p 5000:5000 \
   -v $(pwd)/downloads:/app/downloads \
+  -v $(pwd)/cookie.txt:/app/cookie.txt:ro \
   riba2534/netease_url:latest
 ```
 
@@ -79,9 +81,27 @@ docker run -d \
 - `DOWNLOADS_DIR`：下载目录（默认 `downloads`）
 - `LOG_LEVEL`：日志等级（默认 `INFO`）
 - `CORS_ORIGINS`：CORS 白名单（默认 `*`）
+- `COOKIE_FILE`：容器内 Cookie 文件路径（默认 `cookie.txt`，即 `/app/cookie.txt`）
+- `COOKIE_STRING`：直接通过环境变量注入 Cookie 内容（若设置，将写入 `COOKIE_FILE`）
 
 ## 常用目录挂载
 - `/app/downloads`：下载输出目录（建议映射到宿主机，避免容器删除后文件丢失）
+- `/app/cookie.txt` 或 `/app/config/cookie.txt`：Cookie 文件（建议以只读方式挂载 `:ro`）
+
+示例一（默认路径 `/app/cookie.txt`）：
+```bash
+-v $(pwd)/cookie.txt:/app/cookie.txt:ro
+```
+
+示例二（自定义路径 `/app/config/cookie.txt`）：
+```bash
+-v $(pwd)/cookie.txt:/app/config/cookie.txt:ro -e COOKIE_FILE=/app/config/cookie.txt
+```
+
+示例三（不挂载文件，使用环境变量直接提供 Cookie）
+```bash
+-e COOKIE_STRING='MUSIC_U=xxx; __csrf=yyy; ...'
+```
 
 ## 主要接口
 - `GET  /`：内置前端页面

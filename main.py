@@ -52,6 +52,7 @@ class APIConfig:
     request_timeout: int = 30
     log_level: str = 'INFO'
     cors_origins: str = '*'
+    cookie_file: str = 'cookie.txt'
 
 
 class APIResponse:
@@ -93,7 +94,7 @@ class MusicAPIService:
     def __init__(self, config: APIConfig):
         self.config = config
         self.logger = self._setup_logger()
-        self.cookie_manager = CookieManager()
+        self.cookie_manager = CookieManager(self.config.cookie_file)
         self.netease_api = NeteaseAPI()
         self.downloader = MusicDownloader()
         self.progress_manager = DownloadProgressManager()
@@ -101,6 +102,15 @@ class MusicAPIService:
         # 创建下载目录
         self.downloads_path = Path(config.downloads_dir)
         self.downloads_path.mkdir(exist_ok=True)
+
+        # 如提供环境变量 COOKIE_STRING，则将其写入到 cookie 文件
+        cookie_env = os.getenv('COOKIE_STRING')
+        if cookie_env:
+            try:
+                self.cookie_manager.write_cookie(cookie_env)
+                self.logger.info("已从环境变量写入 Cookie 到文件")
+            except Exception as e:
+                self.logger.warning(f"从环境变量写入 Cookie 失败: {e}")
         
         self.logger.info(f"音乐API服务初始化完成，下载目录: {self.downloads_path.absolute()}")
     
@@ -223,7 +233,8 @@ config = APIConfig(
     debug=os.getenv('DEBUG', 'false').lower() == 'true',
     downloads_dir=os.getenv('DOWNLOADS_DIR', 'downloads'),
     log_level=os.getenv('LOG_LEVEL', 'INFO'),
-    cors_origins=os.getenv('CORS_ORIGINS', '*')
+    cors_origins=os.getenv('CORS_ORIGINS', '*'),
+    cookie_file=os.getenv('COOKIE_FILE', 'cookie.txt')
 )
 app = Flask(__name__)
 api_service = MusicAPIService(config)

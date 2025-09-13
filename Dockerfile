@@ -25,8 +25,8 @@ COPY . .
 # Expose default port
 EXPOSE 5000
 
-# Create downloads dir as a volume to persist outputs
-VOLUME ["/app/downloads"]
+# Create volumes: downloads and optional config dir for cookie.txt
+VOLUME ["/app/downloads", "/app/config"]
 
 # Healthcheck (basic)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
@@ -38,8 +38,8 @@ ENV HOST=0.0.0.0 \
     DEBUG=false \
     DOWNLOADS_DIR=downloads \
     LOG_LEVEL=INFO \
-    CORS_ORIGINS=*
+    CORS_ORIGINS=* \
+    COOKIE_FILE=cookie.txt
 
 # Run the app
 CMD ["python", "main.py"]
-
