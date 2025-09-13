@@ -12,3 +12,5 @@ __pycache__
 # uv
 uv.lock
 .pytest_cache/
+*.log
+downloads/
