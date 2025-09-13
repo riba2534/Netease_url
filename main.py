@@ -18,6 +18,12 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 from urllib.parse import quote
 from flask import Flask, request, send_file, render_template, Response
+import json
+import zipfile
+import tempfile
+import uuid
+from threading import Thread, Lock
+from queue import Queue
 
 try:
     from music_api import (
@@ -27,6 +33,8 @@ try:
     )
     from cookie_manager import CookieManager, CookieException
     from music_downloader import MusicDownloader, DownloadException, AudioFormat
+    from download_progress import DownloadProgressManager
+    from enhanced_download import setup_enhanced_download_routes
 except ImportError as e:
     print(f"导入模块失败: {e}")
     print("请确保所有依赖模块存在且可用")
@@ -73,6 +81,11 @@ class APIResponse:
             response['error_code'] = error_code
         return response, status_code
 
+    @staticmethod
+    def sse_message(data: Dict[str, Any]) -> str:
+        """格式化SSE消息"""
+        return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
 
 class MusicAPIService:
     """音乐API服务类"""
@@ -83,6 +96,7 @@ class MusicAPIService:
         self.cookie_manager = CookieManager()
         self.netease_api = NeteaseAPI()
         self.downloader = MusicDownloader()
+        self.progress_manager = DownloadProgressManager()
         
         # 创建下载目录
         self.downloads_path = Path(config.downloads_dir)
@@ -207,6 +221,9 @@ config = APIConfig()
 app = Flask(__name__)
 api_service = MusicAPIService(config)
 
+
+# 设置增强的下载路由
+setup_enhanced_download_routes(app, api_service, APIResponse, playlist_detail)
 
 @app.before_request
 def before_request():
